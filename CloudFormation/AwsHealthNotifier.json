@@ -10,21 +10,9 @@
             "Type": "String",
             "Description": "Name of zip file"
         },
-        "KmsKeyArn": {
+        "SnsTopicArn": {
             "Type": "String",
-            "Description": "Arn of kms key used to encrypt/decrypt environment variables"
-        },
-        "SlackChannel": {
-            "Type": "String",
-            "Description": "Name of slack channel"
-        },
-        "SlackChannelIcon": {
-            "Type": "String",
-            "Description": "Slack icon"
-        },
-        "SlackWebhookUrl": {
-            "Type": "String",
-            "Description": "Slack webhook url"
+            "Description": "Arn of sns topic to send notifications"
         }
     },
     "Resources": {
@@ -84,14 +72,8 @@
                 "Timeout": 5,
                 "Environment": {
                     "Variables": {
-                        "SlackChannel": {
-                            "Ref": "SlackChannel"
-                        },
-                        "SlackChannelIcon": {
-                            "Ref": "SlackChannelIcon"
-                        },
-                        "SlackWebhookUrl": {
-                            "Ref": "SlackWebhookUrl"
+                        "SnsTopicArn": {
+                            "Ref": "SnsTopicArn"
                         }
                     }
                 },

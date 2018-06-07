@@ -1,6 +1,1 @@
 boto3
-certifi
-chardet
-idna
-requests
-urllib3

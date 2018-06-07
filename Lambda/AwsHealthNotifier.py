@@ -5,6 +5,7 @@ import json
 import os
 session = boto3.session.Session(region_name='us-east-1')
 hClient = session.client('health')
+snsClient = boto3.client('sns')
 def raise_error(emessage):
     raise ValueError(emessage)
 def get_events():
@@ -44,25 +45,21 @@ def get_event_affected_entities(arn):
         return response['entities'][0]['entityValue']
     else:
         raise_error('there was a problem getting the list of entities')
-
-def send_slack(state,days,entities,time,code,region):
-    
-    slackUrl=os.environ['SlackWebhookUrl']
-    slackMessage='%s AWS scheduled event %s\nentities: %s\ntime: %s\ncode: %s\nregion: %s' % (state,days,entities,time,code,region)
-    print(slackMessage)
-    slackData = {
-        'channel' : os.environ['SlackChannel'],
-        'text': slackMessage,
-        'icon_emoji': os.environ['SlackChannelIcon'],
-        'username': "AwsHealth"
-    }
-    
-    response = requests.post(
-        slackUrl, data=json.dumps(slackData),
-        headers={'Content-Type': 'application/json'}
-    )
-    if response.status_code != 200:
-        raise_error('Bad response from slack - %s' % response.text)
+def publish_sns(state,days,entities,time,code,region):
+    snsArn = os.environ['SnsTopicArn']
+    message='%s AWS scheduled event %s\nentities: %s\ntime: %s\ncode: %s\nregion: %s' % (state,days,entities,time,code,region)
+    if snsArn:
+        response = snsClient.publish(
+            TargetArn=snsArn,
+            Message=str(message),
+            MessageStructure='text'
+        )
+        if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+            print('sns published - %s' % (message))
+        else:
+            raise_error('bad response when publishing sns')
+    else:
+        print('No sns topic arn provided')
 
 def lambda_handler(context,event):
     e=get_events()
@@ -86,10 +83,10 @@ def lambda_handler(context,event):
         delta = (eventStartTime.replace(tzinfo=None) - datetime.now()).days
         print(delta)
         if delta == 5:
-            send_slack('Info\n','in %s days' % (delta),eventEntities,eventStartTime,eventTypeCode,eventRegion)
+            publish_sns('Info\n','in %s days' % (delta),eventEntities,eventStartTime,eventTypeCode,eventRegion)
         elif delta == 1:
-            send_slack('Warning :bangbang:\n','tomorrow',eventEntities,eventStartTime,eventTypeCode,eventRegion)
+            publish_sns('Warning :bangbang:\n','tomorrow',eventEntities,eventStartTime,eventTypeCode,eventRegion)
         elif delta == 0:
-            send_slack('Critial :bangbang:\n','today',eventEntities,eventStartTime,eventTypeCode,eventRegion)
+            publish_sns('Critial :bangbang:\n','today',eventEntities,eventStartTime,eventTypeCode,eventRegion)
         
         
